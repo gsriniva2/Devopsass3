@@ -1,0 +1,99 @@
+Assignment 3:
+3. Write pipeline-as-code to deploy containerised application. You can choose any sample application written in java, nodejs 
+or php. 
+- Prepare a dockerfile or docker-conpose.yaml to run the containerised application.
+- Use any of the container orchestration tool, be it kubernetes, docker swarm, ecs, eks etc and deploy the above application 
+to that cluster.
+- This deployment pipeline should be managed in a code format, you use can jenkinsfile, drone-ci, azure pipelines or 
+bitbucket-pipelines etc as the tool for achieving the same. Bitbucket-pipelines is most preferred for this assignmen 
+Delivery Outcome:
+- Once we make changes in the docker-compose.yaml or dockerfile or any of the code in the container and push it to git, 
+your pipeline as a code should build this container and deploy it accordingly to the mentioned services i.e kubernetes, 
+docker-swarm, ecs, eks etc.
+- To test we should have an url endpoint which confirms that the application is running
+
+1)Java Spring Boot Application:
+
+Create a simple Java Spring Boot application.
+
+2)Dockerfile:
+
+Create a Dockerfile in the root of your project.
+
+FROM openjdk:11
+COPY target/your-app.jar /app/your-app.jar
+CMD ["java", "-jar", "/app/your-app.jar"]
+
+Make sure to replace your-app with your actual application name.
+
+3)Bitbucket Pipelines Configuration (bitbucket-pipelines.yml):
+
+Create a bitbucket-pipelines.yml file in the root of your project.
+
+image: maven:3.6.3
+
+pipelines:
+  default:
+    - step:
+        name: Build and Push Docker Image
+        script:
+          - echo "Building Docker image..."
+          - docker build -t $DOCKER_USERNAME/your-app .
+          - echo "Logging in to Docker Hub..."
+          - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+          - echo "Pushing Docker image to Docker Hub..."
+          - docker push $DOCKER_USERNAME/your-app
+
+  branches:
+    master:
+      - step:
+          name: Deploy to Kubernetes
+          deployment: production
+          script:
+            - pipe: atlassian/aws-eks-run-kubectl
+              variables:
+                AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+                AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+                AWS_DEFAULT_REGION: $AWS_REGION
+                EKS_CLUSTER_NAME: "your-eks-cluster-name"
+                KUBECTL_COMMAND: "apply -f k8s/deployment.yaml"
+
+Configure your Bitbucket repository's Pipeline settings to include Docker and Kubernetes environment variables.
+Replace your-app, $DOCKER_USERNAME, your-eks-cluster-name, and other placeholders with your actual values.
+
+4)Kubernetes Deployment Manifest (k8s/deployment.yaml):
+
+Create a Kubernetes deployment manifest in a k8s directory.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: your-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: your-app
+  template:
+    metadata:
+      labels:
+        app: your-app
+    spec:
+      containers:
+        - name: your-app
+          image: $DOCKER_USERNAME/your-app:latest
+          ports:
+            - containerPort: 8080
+
+Replace your-app, $DOCKER_USERNAME with your actual values.
+
+5)Test Endpoint:
+
+Ensure that your application has a health check or a simple endpoint that can be used for testing. For example, an endpoint that returns "Hello, World!" or similar.
+Once this setup is complete, any change pushed to the repository will trigger the Bitbucket Pipelines, which will build the Docker image, push it to Docker Hub, and deploy the updated container to your Kubernetes cluster.
+
+Release Notes:
+
+This example assumes a Maven-based Java Spring Boot application, and adjustments may be needed for other languages or frameworks.
+Ensure proper security measures, such as storing sensitive information securely in Bitbucket Pipelines, and securing access to your container registry and Kubernetes cluster.
+Reference IDLE: Visual studio.
